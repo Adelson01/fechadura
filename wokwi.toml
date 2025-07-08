@@ -1,0 +1,5 @@
+[wokwi]
+version = 1
+firmware = 'build/fechadura.uf2'
+elf = 'build/fechadura.elf'
+gdbServerPort=3333
