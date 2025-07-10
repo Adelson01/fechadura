@@ -3,6 +3,16 @@
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
 
+#include "hardware/i2c.h"
+#include "inc/ssd1306.h"
+#include "inc/font.h"
+
+
+#define I2C_PORT i2c1
+#define I2C_SDA 14
+#define I2C_SCL 15
+#define endereco 0x3C
+
 // define o LED de saída
 #define GPIO_LED 13
 
@@ -115,22 +125,70 @@ char pico_keypad_get_key(void) {
 }
 
 
-void teste_senha(char senha_digitada[5], const char senha_correta[5]){
+
+
+void inicializar_tela(ssd1306_t *disp) {
+    // Inicialização do I2C a 400Khz.
+    i2c_init(I2C_PORT, 400 * 1000);
+
+    // Define a função dos pinos GPIO para I2C
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA); // Habilita pull-up na linha de dados
+    gpio_pull_up(I2C_SCL); // Habilita pull-up na linha de clock
+
+    // Inicializa e configura a estrutura e o hardware do display
+    // Note que usamos 'disp' diretamente, pois ele já é um ponteiro
+    ssd1306_init(disp, WIDTH, HEIGHT, false, endereco, I2C_PORT);
+    ssd1306_config(disp);
+    ssd1306_send_data(disp);
+
+    // Limpa o display. O display inicia com todos os pixels apagados.
+    ssd1306_fill(disp, false);
+    ssd1306_send_data(disp);
+}
+
+
+
+
+bool teste_senha(ssd1306_t *disp, char senha_digitada[5]){
+    
  if (strcmp(senha_digitada, senha_correta) == 0) {
-                    printf("BEM VINDA DANI.\n");
-                  ctrl=1;
+                    ssd1306_fill(disp, false);
+               ssd1306_draw_string(disp, "BEM VINDA", 30, 26); // Desenha uma string
+                ssd1306_draw_string(disp, "DANI", 35, 40);
+               ssd1306_send_data(disp);
+                 busy_wait_ms(2000); 
+                  return true;
                 } 
                  else if (strcmp(senha_digitada, senha_correta1) == 0) {
-                    printf("BEM VINDO GUILHERME.\n");
-                   ctrl = 1;
+                   ssd1306_fill(disp, false);
+               ssd1306_draw_string(disp, "BEM VINDO", 35, 26); // Desenha uma string
+                ssd1306_draw_string(disp, "GUILHERME", 30, 40);
+               ssd1306_send_data(disp);
+                 busy_wait_ms(2000); 
+                  return true;
                 } else if (strcmp(senha_digitada, senha_correta2) == 0) {
-                    printf("BEM VINDO ADELSON.\n");
-                   ctrl = 1;
+                   ssd1306_fill(disp, false);
+               ssd1306_draw_string(disp, "BEM VINDO", 30, 26); // Desenha uma string
+                ssd1306_draw_string(disp, "ADELSON", 35, 40);
+               ssd1306_send_data(disp);
+                 busy_wait_ms(2000); 
+                  return true;
                 } else {
-                    printf("Senha incorreta. Tente novamente.\n");
+                   ssd1306_fill(disp, false);
+               ssd1306_draw_string(disp, "INVALIDO", 30, 30); // Desenha uma string
+               ssd1306_send_data(disp);
+                 busy_wait_ms(3000); 
                     gpio_put(GPIO_LED, false); // Mantém ou desliga o LED
+                    return false;
                 }
 }
+
+
+
+
+
 
 
 // --- FUNÇÃO PRINCIPAL MODIFICADA PARA A LÓGICA DE SENHA ---
@@ -142,12 +200,16 @@ int main() {
     gpio_set_dir(GPIO_LED, GPIO_OUT);
     gpio_put(GPIO_LED, false); // Garante que o LED comece desligado
 
+     ssd1306_t ssd;
+      inicializar_tela(&ssd);
+
     // Variáveis para a lógica da senha
    
     char senha_digitada[5];
     int indice_senha = 0;
-
-    printf("Digite a senha de 4 digitos:\n");
+    int indice_tela = 48;
+    ssd1306_draw_string(&ssd, "DIGITE A SENHA", 8, 10); // Desenha uma string
+      ssd1306_send_data(&ssd); // Atualiza o display
 
     while (true) {
         char caracter_press = pico_keypad_get_key();
@@ -159,23 +221,31 @@ int main() {
             if (indice_senha < 4) {
                 senha_digitada[indice_senha] = caracter_press;
                 indice_senha++;
-              printf("%c", caracter_press);// Fornece um feedback visual que a tecla foi recebida
+                indice_tela = indice_tela + 8;
+               ssd1306_draw_char(&ssd,caracter_press , indice_tela, 34);
+               ssd1306_send_data(&ssd); // Atualiza o display
             }
 
             // Se 4 dígitos foram inseridos, verifica a senha
             if (indice_senha == 4) {
                 senha_digitada[4] = '\0'; // Adiciona o terminador nulo para formar uma string válida
 
-                printf("\nVerificando...\n");
-
+                 ssd1306_fill(&ssd, false);
+               ssd1306_draw_string(&ssd, "VERIFICANDO", 30, 32); // Desenha uma string
+               ssd1306_send_data(&ssd); // Atualiza o display
+                 busy_wait_ms(2000); 
                 // Compara a senha digitada com a senha correta
-               teste_senha(senha_digitada, senha_correta);
-             if(ctrl == 1){
+               
+          if (teste_senha(&ssd, senha_digitada)) {
                                gpio_put(GPIO_LED, true); // Acende o LED
-                                ctrl = 0;
              }
                 // Reseta o índice para a próxima tentativa
                 indice_senha = 0;
+                indice_tela = 48;
+                 ssd1306_fill(&ssd, false);
+                ssd1306_draw_string(&ssd, "DIGITE A SENHA", 8, 10); // Desenha uma string
+      ssd1306_send_data(&ssd); // Atualiza o display
+     
                 printf("\nDigite a senha de 4 digitos:\n");
             }
         }
