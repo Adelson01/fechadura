@@ -2,20 +2,17 @@
 #include <string.h> // <-- NOVO: Necessário para a função de comparação de strings (strcmp)
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
-
 #include "hardware/i2c.h"
 #include "inc/ssd1306.h"
 #include "inc/font.h"
-
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
-#include "pico/time.h" 
+
 
 #define I2C_PORT i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
-
 
 #define SERVO_MIN_US 550   // Posição de 0 graus
 #define SERVO_MAX_US 2300  // Posição de 180 graus
@@ -23,6 +20,7 @@
 // define o LED de saída
 #define GPIO_LED 13
 #define servo_pin  20
+
 const char senha_correta[5] = "123A"; // <-- MUDE SUA SENHA DE 4 DÍGITOS AQUI
 const char senha_correta1[5] = "123B";
 const char senha_correta2[5] = "123C";
@@ -101,7 +99,7 @@ char pico_keypad_get_key(void) {
 
         gpio_put(_rows[row], 1);
 
-        busy_wait_us(100); 
+        sleep_us(100); 
 
         cols = gpio_get_all();
         gpio_put(_rows[row], 0);
@@ -208,7 +206,7 @@ bool teste_senha(ssd1306_t *disp, char senha_digitada[5]){
                ssd1306_draw_string(disp, "BEM VINDA", 30, 26); // Desenha uma string
                 ssd1306_draw_string(disp, "DANI", 35, 40);
                ssd1306_send_data(disp);
-                 busy_wait_ms(2000); 
+                 sleep_ms(2000); 
                   return true;
                 } 
                  else if (strcmp(senha_digitada, senha_correta1) == 0) {
@@ -216,20 +214,20 @@ bool teste_senha(ssd1306_t *disp, char senha_digitada[5]){
                ssd1306_draw_string(disp, "BEM VINDO", 35, 26); // Desenha uma string
                 ssd1306_draw_string(disp, "GUILHERME", 30, 40);
                ssd1306_send_data(disp);
-                 busy_wait_ms(2000); 
+                 sleep_ms(2000); 
                   return true;
                 } else if (strcmp(senha_digitada, senha_correta2) == 0) {
                    ssd1306_fill(disp, false);
                ssd1306_draw_string(disp, "BEM VINDO", 30, 26); // Desenha uma string
                 ssd1306_draw_string(disp, "ADELSON", 35, 40);
                ssd1306_send_data(disp);
-                 busy_wait_ms(2000); 
+                 sleep_ms(2000); 
                   return true;
                 } else {
                    ssd1306_fill(disp, false);
                ssd1306_draw_string(disp, "INVALIDO", 30, 30); // Desenha uma string
                ssd1306_send_data(disp);
-                 busy_wait_ms(3000); 
+                 sleep_ms(3000); 
                     gpio_put(GPIO_LED, false); // Mantém ou desliga o LED
                     return false;
                 }
@@ -294,7 +292,7 @@ int main() {
                  ssd1306_fill(&ssd, false);
                ssd1306_draw_string(&ssd, "VERIFICANDO", 30, 32); // Desenha uma string
                ssd1306_send_data(&ssd); // Atualiza o display
-                 busy_wait_ms(2000); 
+                 sleep_ms(2000); 
                 // Compara a senha digitada com a senha correta
                
           if (teste_senha(&ssd, senha_digitada)) {
@@ -314,6 +312,6 @@ int main() {
         }
         
         // Pequeno delay para evitar leituras múltiplas da mesma tecla
-        busy_wait_us(200000); 
+        sleep_ms(200); 
     }
 }
