@@ -7,23 +7,31 @@
 #include "inc/ssd1306.h"
 #include "inc/font.h"
 
+#include "hardware/pwm.h"
+#include "hardware/clocks.h"
+#include "pico/time.h" 
 
 #define I2C_PORT i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
 
+
+#define SERVO_MIN_US 550   // Posição de 0 graus
+#define SERVO_MAX_US 2300  // Posição de 180 graus
+
 // define o LED de saída
 #define GPIO_LED 13
-
+#define servo_pin  20
 const char senha_correta[5] = "123A"; // <-- MUDE SUA SENHA DE 4 DÍGITOS AQUI
 const char senha_correta1[5] = "123B";
 const char senha_correta2[5] = "123C";
- int  ctrl= 0;
-
+const uint button_0 = 5;
+static volatile uint32_t last_time = 0; // Armazena o tempo do último evento (em microssegundos)
+uint16_t posicao_atual_servo_us;
 // define os pinos do teclado com as suas portas GPIO
 uint columns[4] = {16, 9, 8, 4};   // Pinos para as colunas
-uint rows[4] = {20, 19, 18, 17}; // Pinos para as linhas
+uint rows[4] = {19, 28, 18, 17}; // Pinos para as linhas
 
 //mapa de teclas
 char KEY_MAP[16] = {
@@ -124,9 +132,6 @@ char pico_keypad_get_key(void) {
     }
 }
 
-
-
-
 void inicializar_tela(ssd1306_t *disp) {
     // Inicialização do I2C a 400Khz.
     i2c_init(I2C_PORT, 400 * 1000);
@@ -146,6 +151,51 @@ void inicializar_tela(ssd1306_t *disp) {
     // Limpa o display. O display inicia com todos os pixels apagados.
     ssd1306_fill(disp, false);
     ssd1306_send_data(disp);
+}
+
+//Configura e inicializa um canal PWM para controlar um servomotor.
+void inicializar_pwm(uint pwm_pin) {
+    // 1. Habilita a função PWM para o pino especificado.
+    gpio_set_function(pwm_pin, GPIO_FUNC_PWM);
+
+    // 2. Descobre qual "slice" (canal) de PWM controla este pino.
+    uint slice_num = pwm_gpio_to_slice_num(pwm_pin);
+
+    // 3. Define o divisor de clock do PWM para obter uma base de contagem
+    // que permita gerar 50 Hz. (Clock de 125MHz / 64 = ~1.95 MHz)
+    pwm_set_clkdiv(slice_num, 64.0f);
+
+    // 4. Define o valor de "wrap" (o valor máximo do contador).
+    // Isso define a frequência final do PWM: 1.95 MHz / 39063 ≈ 50 Hz.
+    // O período (duração de um ciclo completo) será de 20ms.
+    uint32_t wrap = 39062;
+    pwm_set_wrap(slice_num, wrap);
+
+    // 5. Habilita o PWM no slice correspondente.
+    // É importante habilitar antes de definir o nível do canal pela primeira vez.
+    pwm_set_enabled(slice_num, true);
+}
+
+void set_servo_position(uint gpio, uint16_t pulse_width_us) {
+    uint slice_num = pwm_gpio_to_slice_num(gpio);
+    uint32_t wrap = 39062; // O mesmo valor da inicialização
+    // Converte a largura de pulso (µs) para um valor de nível de PWM
+    uint32_t level = (uint32_t)((pulse_width_us / 20000.0f) * wrap);
+    pwm_set_chan_level(slice_num, pwm_gpio_to_channel(gpio), level);
+  
+}
+
+
+void fechada(uint gpio, uint32_t events)
+{
+    // Obtém o tempo atual em microssegundos
+    uint32_t current_time = to_us_since_boot(get_absolute_time());
+    // Verifica se passou tempo suficiente desde o último evento
+    if (current_time - last_time > 200000) // X ms de debouncing
+    {
+        last_time = current_time; // Atualiza o tempo do último evento
+          set_servo_position(servo_pin, SERVO_MAX_US);                            
+    }
 }
 
 
@@ -185,12 +235,6 @@ bool teste_senha(ssd1306_t *disp, char senha_digitada[5]){
                 }
 }
 
-
-
-
-
-
-
 // --- FUNÇÃO PRINCIPAL MODIFICADA PARA A LÓGICA DE SENHA ---
 int main() {
     stdio_init_all();
@@ -200,14 +244,31 @@ int main() {
     gpio_set_dir(GPIO_LED, GPIO_OUT);
     gpio_put(GPIO_LED, false); // Garante que o LED comece desligado
 
-     ssd1306_t ssd;
-      inicializar_tela(&ssd);
+    gpio_init(button_0);
+    gpio_set_dir(button_0, GPIO_IN);    // Configura o pino como entrada
+    gpio_pull_up(button_0);  
 
+     gpio_set_irq_enabled_with_callback(button_0, GPIO_IRQ_EDGE_FALL, true, &fechada);
+
+
+     ssd1306_t ssd;
+    inicializar_tela(&ssd);
+
+    inicializar_pwm(servo_pin);
+
+
+ posicao_atual_servo_us = SERVO_MIN_US;
+    set_servo_position(servo_pin, posicao_atual_servo_us);
+    sleep_ms(500); // Pequena pausa para garantir que o servo se estabilize
+
+
+    
     // Variáveis para a lógica da senha
    
     char senha_digitada[5];
     int indice_senha = 0;
     int indice_tela = 48;
+
     ssd1306_draw_string(&ssd, "DIGITE A SENHA", 8, 10); // Desenha uma string
       ssd1306_send_data(&ssd); // Atualiza o display
 
@@ -238,6 +299,8 @@ int main() {
                
           if (teste_senha(&ssd, senha_digitada)) {
                                gpio_put(GPIO_LED, true); // Acende o LED
+                            set_servo_position(servo_pin, SERVO_MIN_US);
+                         
              }
                 // Reseta o índice para a próxima tentativa
                 indice_senha = 0;
@@ -245,8 +308,8 @@ int main() {
                  ssd1306_fill(&ssd, false);
                 ssd1306_draw_string(&ssd, "DIGITE A SENHA", 8, 10); // Desenha uma string
       ssd1306_send_data(&ssd); // Atualiza o display
+               
      
-                printf("\nDigite a senha de 4 digitos:\n");
             }
         }
         
