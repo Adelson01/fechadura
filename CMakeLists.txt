@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(fechadura fechadura.c )
+add_executable(fechadura fechadura.c  inc/ssd1306.c)
 
 pico_set_program_name(fechadura "fechadura")
 pico_set_program_version(fechadura "0.1")
@@ -46,7 +46,10 @@ pico_enable_stdio_usb(fechadura 1)
 
 # Add the standard library to the build
 target_link_libraries(fechadura
-        pico_stdlib)
+        pico_stdlib
+         hardware_i2c
+         hardware_pwm
+         hardware_adc)
 
 # Add the standard include files to the build
 target_include_directories(fechadura PRIVATE
