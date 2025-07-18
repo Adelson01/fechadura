@@ -1,5 +1,5 @@
-#include <stdio.h>                              // Biblioteca padrão de entrada e saída
-#include <string.h>                            // Necessária para comparação de strings (strcmp)
+#include <stdio.h>                            // Biblioteca padrão de entrada e saída
+#include <string.h>                           // Necessária para comparação de strings (strcmp)
 #include "pico/stdlib.h"                      // Biblioteca principal do Pico SDK
 #include "hardware/timer.h"                   // Controle de temporizadores
 #include "hardware/i2c.h"                     // Comunicação I2C
@@ -23,12 +23,12 @@
 #define servo_pin  20                           // Pino PWM conectado ao servo motor
 
 const char senha_correta[5] = "123A";           // Senha válida para a primeira pessoa autorizada (DANI)
-const char senha_correta1[5] = "123B";          // Senha válida para a segunda pessoa autorizada (GUILHERME)
+const char senha_correta1[5] = "123D";          // Senha válida para a segunda pessoa autorizada (GUILHERME)
 const char senha_correta2[5] = "123C";          // Senha válida para a terceira pessoa autorizada (ADELSON)
 
 const uint button_0 = 5;                        // Pino conectado ao botão físico externo (para abrir)
 static volatile uint64_t last_time = 0;         // Tempo da última ativação por interrupção (debounce)
-uint16_t posicao_atual_servo_us;               // Guarda a posição atual do servo motor
+uint16_t posicao_atual_servo_us;                // Guarda a posição atual do servo motor
 
 uint columns[4] = {16, 9, 8, 4};                // Pinos que correspondem às colunas do teclado matricial
 uint rows[4] = {19, 28, 18, 17};                // Pinos que correspondem às linhas do teclado matricial
